@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetScan - Network Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-network-wired"></i>
+                <h1>NetScan</h1>
+            </div>
+            <div class="network-info">
+                <span class="info-item">
+                    <i class="fas fa-desktop"></i>
+                    Local IP: <strong>{{ local_ip }}</strong>
+                </span>
+                <span class="info-item">
+                    <i class="fas fa-mask"></i>
+                    Subnet: <strong>{{ local_mask }}</strong>
+                </span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Scan Control Panel -->
+            <section class="scan-panel">
+                <h2><i class="fas fa-search"></i> Network Scanner</h2>
+                
+                <div class="scan-form">
+                    <div class="input-group">
+                        <label for="network-input">Network to Scan:</label>
+                        <input 
+                            type="text" 
+                            id="network-input" 
+                            placeholder="e.g., 192.168.1.0/24 or leave empty for auto-detect"
+                            value="{{ suggested_network }}"
+                        >
+                        <small class="help-text">
+                            Examples: 192.168.1.0/24, 10.0.0.0/16, or leave empty for auto-detection
+                        </small>
+                    </div>
+                    
+                    <div class="scan-controls">
+                        <button id="start-scan" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Start Scan
+                        </button>
+                        <button id="stop-scan" class="btn btn-secondary" disabled>
+                            <i class="fas fa-stop"></i> Stop Scan
+                        </button>
+                        <button id="clear-results" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Clear Results
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Section -->
+                <div id="progress-section" class="progress-section" style="display: none;">
+                    <div class="progress-info">
+                        <span id="progress-text">Preparing scan...</span>
+                        <span id="progress-stats"></span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section">
+                <div class="results-header">
+                    <h2><i class="fas fa-list"></i> Scan Results</h2>
+                    <div class="results-actions">
+                        <button id="refresh-results" class="btn btn-outline">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Current Scan Results -->
+                <div id="current-results" class="results-container">
+                    <div class="no-results">
+                        <i class="fas fa-search"></i>
+                        <p>No scan results yet. Start a scan to discover devices on your network.</p>
+                    </div>
+                </div>
+
+                <!-- Scan History -->
+                <div class="history-section">
+                    <h3><i class="fas fa-history"></i> Recent Scans</h3>
+                    <div id="scan-history" class="history-container">
+                        {% if recent_scans %}
+                            {% for scan in recent_scans %}
+                            <div class="history-item">
+                                <div class="history-info">
+                                    <strong>{{ scan.network }}</strong>
+                                    <span class="timestamp">{{ scan.timestamp }}</span>
+                                </div>
+                                <div class="history-stats">
+                                    {% if scan.hosts %}
+                                        <span class="found-count">{{ scan.total_found }} devices found</span>
+                                        <button class="btn btn-small" onclick="loadScanResult({{ scan.id }})">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                    {% else %}
+                                        <span class="error">Error occurred</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="no-history">
+                                <p>No previous scans found.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 NetScan - Network Discovery Tool</p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
