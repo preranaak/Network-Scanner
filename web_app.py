@@ -30,6 +30,11 @@ scan_status = {
     "found_hosts": 0
 }
 
+@app.route('/test')
+def test():
+    """Test page with simple interface"""
+    return render_template('test.html')
+
 @app.route('/')
 def index():
     """Main dashboard page"""
@@ -406,7 +411,7 @@ def determine_device_type(ip, hostname, vendor):
         return '💻 Computer/Device'
 
 def run_scan(network):
-    """Run the actual scan in background with progress tracking and device identification"""
+    """Run the actual scan in background with progress tracking and hostname resolution"""
     scan_status["running"] = True
     scan_status["current_scan"] = str(network)
     scan_status["progress"] = 0
@@ -420,7 +425,7 @@ def run_scan(network):
     start_time = datetime.now()
     
     try:
-        # Modified scan_network function with progress tracking
+        # Scan with hostname resolution
         online_hosts = []
         
         import concurrent.futures
@@ -436,19 +441,28 @@ def run_scan(network):
                     scan_status["progress"] = int((scan_status["scanned_hosts"] / total_hosts) * 100)
                     
                     if result:
-                        # Get detailed device information
-                        device_info = get_device_info(result)
+                        # Get hostname for the IP
+                        hostname = get_hostname(result)
+                        
+                        # Get MAC address
+                        mac_address = get_mac_address_simple(result)
+                        
+                        # Get basic device info
+                        device_type = determine_basic_device_type(result, hostname)
+                        
                         host_data = {
                             'ip': result,
-                            'hostname': device_info['hostname'],
-                            'mac_address': device_info['mac_address'],
-                            'device_type': device_info['device_type'],
-                            'vendor': device_info['vendor']
+                            'hostname': hostname,
+                            'mac_address': mac_address,
+                            'device_type': device_type,
+                            'vendor': 'Unknown'
                         }
                         online_hosts.append(host_data)
                         scan_status["found_hosts"] += 1
+                        print(f"Found device: {result} ({hostname}) - {device_type}")
                         
-                except Exception:
+                except Exception as e:
+                    print(f"Error scanning host: {e}")
                     scan_status["scanned_hosts"] += 1
                     scan_status["progress"] = int((scan_status["scanned_hosts"] / total_hosts) * 100)
                     continue
@@ -471,8 +485,10 @@ def run_scan(network):
         }
         
         scan_results.append(scan_result)
+        print(f"Scan completed: {len(online_hosts)} hosts found")
         
     except Exception as e:
+        print(f"Scan error: {e}")
         error_result = {
             "id": len(scan_results) + 1,
             "error": str(e),
@@ -485,6 +501,106 @@ def run_scan(network):
         scan_status["running"] = False
         scan_status["current_scan"] = None
         scan_status["progress"] = 100
+
+def get_mac_address_simple(ip):
+    """Get MAC address using ARP table - simplified version"""
+    try:
+        import platform
+        system = platform.system().lower()
+        
+        if system == "windows":
+            # Use arp command on Windows
+            result = subprocess.run(['arp', '-a', ip], capture_output=True, text=True, timeout=3)
+            if result.returncode == 0:
+                # Parse Windows ARP output
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if ip in line:
+                        # Extract MAC address (format: xx-xx-xx-xx-xx-xx)
+                        mac_match = re.search(r'([0-9a-fA-F]{2}[-:]){5}[0-9a-fA-F]{2}', line)
+                        if mac_match:
+                            return mac_match.group(0).replace('-', ':').upper()
+        else:
+            # Use arp command on Unix/Linux
+            result = subprocess.run(['arp', '-n', ip], capture_output=True, text=True, timeout=3)
+            if result.returncode == 0:
+                # Parse Unix ARP output
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if ip in line:
+                        # Extract MAC address
+                        mac_match = re.search(r'([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}', line)
+                        if mac_match:
+                            return mac_match.group(0).replace('-', ':').upper()
+    except Exception as e:
+        print(f"Error getting MAC for {ip}: {e}")
+    
+    return 'Unknown'
+
+def get_hostname(ip):
+    """Get hostname for an IP address"""
+    try:
+        hostname = socket.gethostbyaddr(ip)[0]
+        return hostname if hostname != ip else 'Unknown'
+    except:
+        return 'Unknown'
+
+def determine_basic_device_type(ip, hostname):
+    """Determine basic device type based on IP and hostname"""
+    hostname_lower = hostname.lower() if hostname != 'Unknown' else ''
+    
+    # Check if it's likely a router/gateway (usually .1 or .254)
+    ip_parts = ip.split('.')
+    last_octet = int(ip_parts[-1]) if ip_parts[-1].isdigit() else 0
+    
+    if last_octet in [1, 254]:
+        return '🌐 Router/Gateway'
+    
+    # Check by hostname patterns
+    if any(x in hostname_lower for x in ['router', 'gateway', 'modem']):
+        return '🌐 Router/Gateway'
+    
+    if any(x in hostname_lower for x in ['printer', 'print', 'hp-', 'canon-', 'epson-']):
+        return '🖨️ Printer'
+    
+    if any(x in hostname_lower for x in ['camera', 'cam', 'security', 'nvr', 'dvr']):
+        return '📹 Security Camera'
+    
+    if any(x in hostname_lower for x in ['tv', 'roku', 'chromecast', 'firestick', 'appletv']):
+        return '📺 Smart TV/Streaming'
+    
+    if any(x in hostname_lower for x in ['phone', 'mobile', 'android', 'iphone', 'samsung']):
+        return '📱 Mobile Device'
+    
+    if any(x in hostname_lower for x in ['laptop', 'desktop', 'pc', 'computer', 'workstation']):
+        return '💻 Computer'
+    
+    if any(x in hostname_lower for x in ['server', 'srv', 'nas', 'storage']):
+        return '🖥️ Server'
+    
+    if any(x in hostname_lower for x in ['switch', 'hub', 'access-point', 'ap-']):
+        return '📡 Network Equipment'
+    
+    if any(x in hostname_lower for x in ['iot', 'smart', 'alexa', 'google-home', 'nest']):
+        return '🏠 Smart Home Device'
+    
+    # Check for common hostname patterns
+    if 'win' in hostname_lower or 'windows' in hostname_lower:
+        return '💻 Windows Computer'
+    
+    if 'mac' in hostname_lower or 'apple' in hostname_lower:
+        return '💻 Mac Computer'
+    
+    if 'ubuntu' in hostname_lower or 'linux' in hostname_lower:
+        return '💻 Linux Computer'
+    
+    # Default based on common IP ranges
+    if last_octet < 50:
+        return '🌐 Network Infrastructure'
+    elif last_octet > 200:
+        return '📱 Mobile/Temporary Device'
+    else:
+        return '💻 Computer/Device'
 
 @app.route('/api/status')
 def get_status():

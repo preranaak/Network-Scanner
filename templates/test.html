@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetScan Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .btn { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        #results { margin-top: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        #progress { margin: 20px 0; }
+        .progress-bar { width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #007bff; width: 0%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <h1>NetScan Test Interface</h1>
+    
+    <div>
+        <input type="text" id="network-input" placeholder="Network (e.g., 192.168.1.0/24)" style="padding: 10px; width: 300px;">
+        <button id="start-scan" class="btn">Start Scan</button>
+        <button id="stop-scan" class="btn" disabled>Stop Scan</button>
+        <button id="clear-results" class="btn">Clear Results</button>
+    </div>
+    
+    <div id="progress" style="display: none;">
+        <p id="progress-text">Scanning...</p>
+        <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <p id="progress-stats"></p>
+    </div>
+    
+    <div id="results">
+        <p>No scan results yet. Click "Start Scan" to begin.</p>
+    </div>
+
+    <script>
+        console.log('Test script loaded');
+        
+        let isScanning = false;
+        let statusInterval = null;
+        
+        // Get elements
+        const startBtn = document.getElementById('start-scan');
+        const stopBtn = document.getElementById('stop-scan');
+        const clearBtn = document.getElementById('clear-results');
+        const networkInput = document.getElementById('network-input');
+        const resultsDiv = document.getElementById('results');
+        const progressDiv = document.getElementById('progress');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const progressStats = document.getElementById('progress-stats');
+        
+        console.log('Elements found:', {
+            startBtn: !!startBtn,
+            stopBtn: !!stopBtn,
+            clearBtn: !!clearBtn,
+            networkInput: !!networkInput,
+            resultsDiv: !!resultsDiv
+        });
+        
+        // Bind events
+        if (startBtn) {
+            startBtn.addEventListener('click', startScan);
+            console.log('Start button event bound');
+        }
+        
+        if (stopBtn) {
+            stopBtn.addEventListener('click', stopScan);
+            console.log('Stop button event bound');
+        }
+        
+        if (clearBtn) {
+            clearBtn.addEventListener('click', clearResults);
+            console.log('Clear button event bound');
+        }
+        
+        async function startScan() {
+            console.log('Start scan function called');
+            
+            const network = networkInput.value.trim();
+            console.log('Network input:', network);
+            
+            try {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                isScanning = true;
+                
+                progressDiv.style.display = 'block';
+                progressText.textContent = 'Starting scan...';
+                
+                console.log('Sending request to /api/scan');
+                
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ network: network })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                const result = await response.json();
+                console.log('Response data:', result);
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `<p style="color: green;">Scan started for ${result.network}</p>`;
+                    startStatusChecking();
+                } else {
+                    throw new Error(result.error || 'Failed to start scan');
+                }
+                
+            } catch (error) {
+                console.error('Scan error:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                resetControls();
+            }
+        }
+        
+        function stopScan() {
+            console.log('Stop scan function called');
+            isScanning = false;
+            stopStatusChecking();
+            resetControls();
+            progressDiv.style.display = 'none';
+            resultsDiv.innerHTML = '<p style="color: orange;">Scan stopped</p>';
+        }
+        
+        async function clearResults() {
+            console.log('Clear results function called');
+            
+            try {
+                const response = await fetch('/api/clear', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                console.log('Clear response:', result);
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = '<p>Results cleared. Click "Start Scan" to begin.</p>';
+                } else {
+                    throw new Error(result.error || 'Failed to clear results');
+                }
+            } catch (error) {
+                console.error('Clear error:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">Clear error: ${error.message}</p>`;
+            }
+        }
+        
+        function startStatusChecking() {
+            console.log('Starting status checking');
+            statusInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/status');
+                    const status = await response.json();
+                    
+                    console.log('Status:', status);
+                    
+                    if (status.running) {
+                        progressText.textContent = `Scanning ${status.current_scan || 'network'}...`;
+                        progressFill.style.width = `${status.progress}%`;
+                        progressStats.textContent = `${status.scanned_hosts}/${status.total_hosts} hosts scanned, ${status.found_hosts} devices found`;
+                    } else if (isScanning) {
+                        // Scan completed
+                        console.log('Scan completed, loading results');
+                        isScanning = false;
+                        stopStatusChecking();
+                        resetControls();
+                        progressDiv.style.display = 'none';
+                        
+                        // Load results
+                        loadResults();
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                }
+            }, 1000);
+        }
+        
+        function stopStatusChecking() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+                statusInterval = null;
+                console.log('Status checking stopped');
+            }
+        }
+        
+        async function loadResults() {
+            console.log('Loading results');
+            try {
+                const response = await fetch('/api/results');
+                const results = await response.json();
+                console.log('Results loaded:', results);
+                
+                if (results.length > 0) {
+                    const latest = results[results.length - 1];
+                    displayResults(latest);
+                } else {
+                    resultsDiv.innerHTML = '<p>No results found</p>';
+                }
+            } catch (error) {
+                console.error('Load results error:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">Failed to load results: ${error.message}</p>`;
+            }
+        }
+        
+        function displayResults(result) {
+            console.log('Displaying results:', result);
+            
+            if (result.error) {
+                resultsDiv.innerHTML = `<p style="color: red;">Scan error: ${result.error}</p>`;
+                return;
+            }
+            
+            if (!result.hosts || result.hosts.length === 0) {
+                resultsDiv.innerHTML = `<p>No devices found on ${result.network}</p>`;
+                return;
+            }
+            
+            let html = `<h3>Scan Results for ${result.network}</h3>`;
+            html += `<p>Found ${result.total_found} devices in ${result.duration}</p>`;
+            html += '<table border="1" style="width: 100%; border-collapse: collapse;">';
+            html += '<tr><th>IP</th><th>Device Type</th><th>Hostname</th><th>MAC</th></tr>';
+            
+            result.hosts.forEach(host => {
+                const ip = typeof host === 'string' ? host : host.ip;
+                const deviceType = typeof host === 'object' ? host.device_type : 'Unknown';
+                const hostname = typeof host === 'object' ? host.hostname : 'Unknown';
+                const mac = typeof host === 'object' ? host.mac_address : 'Unknown';
+                
+                html += `<tr><td>${ip}</td><td>${deviceType}</td><td>${hostname}</td><td>${mac}</td></tr>`;
+            });
+            
+            html += '</table>';
+            resultsDiv.innerHTML = html;
+        }
+        
+        function resetControls() {
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+        
+        console.log('Test script initialization complete');
+    </script>
+</body>
+</html>
