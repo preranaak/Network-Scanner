@@ -182,19 +182,33 @@ class NetScanApp {
             return;
         }
 
-        const hostsHtml = result.hosts.map((host, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td class="device-ip">${host}</td>
-                <td>
-                    <div class="device-status">
-                        <span class="status-indicator"></span>
-                        <span class="status-online">Online</span>
-                    </div>
-                </td>
-                <td>Unknown Device</td>
-            </tr>
-        `).join('');
+        const hostsHtml = result.hosts.map((host, index) => {
+            // Handle both old format (string) and new format (object)
+            const ip = typeof host === 'string' ? host : host.ip;
+            const hostname = typeof host === 'object' ? host.hostname : 'Unknown';
+            const deviceType = typeof host === 'object' ? host.device_type : 'Unknown Device';
+            const macAddress = typeof host === 'object' ? host.mac_address : 'Unknown';
+            const vendor = typeof host === 'object' ? host.vendor : 'Unknown';
+            
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="device-ip">${ip}</td>
+                    <td>
+                        <div class="device-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-online">Online</span>
+                        </div>
+                    </td>
+                    <td class="device-type">${deviceType}</td>
+                    <td class="hostname" title="${hostname}">${hostname.length > 20 ? hostname.substring(0, 20) + '...' : hostname}</td>
+                    <td class="mac-address" title="${vendor}">${macAddress}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Create IP list for copying
+        const ipList = result.hosts.map(host => typeof host === 'string' ? host : host.ip);
 
         resultsContainer.innerHTML = `
             <div class="scan-summary">
@@ -222,6 +236,8 @@ class NetScanApp {
                         <th>IP Address</th>
                         <th>Status</th>
                         <th>Device Type</th>
+                        <th>Hostname</th>
+                        <th>MAC Address</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -233,8 +249,11 @@ class NetScanApp {
                 <button class="btn btn-outline btn-small" onclick="app.exportResults(${result.id})">
                     <i class="fas fa-download"></i> Export JSON
                 </button>
-                <button class="btn btn-outline btn-small" onclick="app.copyToClipboard('${result.hosts.join('\\n')}')">
+                <button class="btn btn-outline btn-small" onclick="app.copyToClipboard('${ipList.join('\\n')}')">
                     <i class="fas fa-copy"></i> Copy IPs
+                </button>
+                <button class="btn btn-outline btn-small" onclick="app.exportCSV(${result.id})">
+                    <i class="fas fa-file-csv"></i> Export CSV
                 </button>
             </div>
         `;
@@ -313,6 +332,48 @@ class NetScanApp {
             } else {
                 throw new Error('Failed to export results');
             }
+        } catch (error) {
+            this.showNotification(`Export error: ${error.message}`, 'error');
+        }
+    }
+
+    exportCSV(scanId) {
+        try {
+            // Find the scan result
+            const response = fetch(`/api/results/${scanId}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.hosts) {
+                        // Create CSV content
+                        let csvContent = "IP Address,Hostname,Device Type,MAC Address,Vendor,Status\n";
+                        
+                        result.hosts.forEach(host => {
+                            const ip = typeof host === 'string' ? host : host.ip;
+                            const hostname = typeof host === 'object' ? host.hostname : 'Unknown';
+                            const deviceType = typeof host === 'object' ? host.device_type : 'Unknown Device';
+                            const macAddress = typeof host === 'object' ? host.mac_address : 'Unknown';
+                            const vendor = typeof host === 'object' ? host.vendor : 'Unknown';
+                            
+                            csvContent += `"${ip}","${hostname}","${deviceType}","${macAddress}","${vendor}","Online"\n`;
+                        });
+                        
+                        // Create and download file
+                        const blob = new Blob([csvContent], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `netscan_${scanId}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        this.showNotification('CSV exported successfully!', 'success');
+                    }
+                })
+                .catch(error => {
+                    this.showNotification(`Export error: ${error.message}`, 'error');
+                });
         } catch (error) {
             this.showNotification(`Export error: ${error.message}`, 'error');
         }

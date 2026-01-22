@@ -285,11 +285,12 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
+    font-size: 0.9rem;
 }
 
 .results-table th,
 .results-table td {
-    padding: 12px 16px;
+    padding: 12px 8px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
 }
@@ -298,6 +299,7 @@ body {
     background: #f8fafc;
     font-weight: 600;
     color: var(--text-primary);
+    font-size: 0.85rem;
 }
 
 .results-table tr:hover {
@@ -308,6 +310,27 @@ body {
     font-family: 'Courier New', monospace;
     font-weight: 600;
     color: var(--primary-color);
+    min-width: 120px;
+}
+
+.device-type {
+    font-weight: 500;
+    min-width: 150px;
+}
+
+.hostname {
+    color: var(--text-secondary);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mac-address {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 130px;
 }
 
 .device-status {
@@ -461,6 +484,24 @@ body {
     .history-stats {
         justify-content: space-between;
     }
+    
+    /* Make table responsive */
+    .results-table {
+        font-size: 0.8rem;
+    }
+    
+    .results-table th,
+    .results-table td {
+        padding: 8px 4px;
+    }
+    
+    /* Hide less important columns on mobile */
+    .results-table th:nth-child(5),
+    .results-table td:nth-child(5),
+    .results-table th:nth-child(6),
+    .results-table td:nth-child(6) {
+        display: none;
+    }
 }
 
 @media (max-width: 480px) {
@@ -474,11 +515,27 @@ body {
     }
     
     .results-table {
-        font-size: 0.9rem;
+        font-size: 0.75rem;
     }
     
     .results-table th,
     .results-table td {
-        padding: 8px 12px;
+        padding: 6px 3px;
+    }
+    
+    /* Show only essential columns on very small screens */
+    .results-table th:nth-child(1),
+    .results-table td:nth-child(1) {
+        display: none;
+    }
+    
+    .device-ip {
+        min-width: 100px;
+        font-size: 0.75rem;
+    }
+    
+    .device-type {
+        min-width: 120px;
+        font-size: 0.7rem;
     }
 }
