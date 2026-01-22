@@ -1,80 +1,122 @@
-// NetScan Web Interface JavaScript
+// NetScan Enterprise - Fixed JavaScript Application
 
 class NetScanApp {
     constructor() {
         this.isScanning = false;
         this.statusCheckInterval = null;
+        this.currentResult = null;
         this.init();
     }
 
     init() {
+        console.log('Initializing NetScan App...');
         this.bindEvents();
         this.loadInitialData();
+        this.resetScanControls();
     }
 
     bindEvents() {
-        // Scan controls
-        document.getElementById('start-scan').addEventListener('click', () => this.startScan());
-        document.getElementById('stop-scan').addEventListener('click', () => this.stopScan());
-        document.getElementById('clear-results').addEventListener('click', () => this.clearResults());
-        document.getElementById('refresh-results').addEventListener('click', () => this.refreshResults());
-
-        // Enter key in network input
-        document.getElementById('network-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !this.isScanning) {
+        console.log('Binding events...');
+        
+        // Start scan button
+        const startBtn = document.getElementById('start-scan');
+        if (startBtn) {
+            startBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Start scan clicked');
                 this.startScan();
-            }
-        });
+            });
+        }
+
+        // Stop scan button
+        const stopBtn = document.getElementById('stop-scan');
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => {
+                console.log('Stop scan clicked');
+                this.stopScan();
+            });
+        }
+
+        // Clear results button
+        const clearBtn = document.getElementById('clear-results');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                console.log('Clear results clicked');
+                this.clearResults();
+            });
+        }
+
+        // Refresh results button
+        const refreshBtn = document.getElementById('refresh-results');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                console.log('Refresh results clicked');
+                this.refreshResults();
+            });
+        }
+
+        console.log('Events bound successfully');
     }
 
     async startScan() {
-        const networkInput = document.getElementById('network-input').value.trim();
+        console.log('Starting scan...');
+        
+        const networkInput = document.getElementById('network-input');
+        const networkValue = networkInput ? networkInput.value.trim() : '';
+        
         const startBtn = document.getElementById('start-scan');
         const stopBtn = document.getElementById('stop-scan');
 
         try {
-            startBtn.disabled = true;
+            if (startBtn) startBtn.disabled = true;
             this.showLoading(true);
+
+            console.log('Sending scan request for network:', networkValue);
 
             const response = await fetch('/api/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ network: networkInput })
+                body: JSON.stringify({ network: networkValue })
             });
 
             const result = await response.json();
+            console.log('Scan response:', result);
 
             if (response.ok) {
                 this.isScanning = true;
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
+                
+                if (startBtn) startBtn.disabled = true;
+                if (stopBtn) stopBtn.disabled = false;
                 
                 this.showProgressSection(true);
                 this.startStatusChecking();
                 
-                this.showNotification('Scan started successfully!', 'success');
+                this.showToast('Scan Started', `Network scan initiated for ${result.network}`, 'success');
             } else {
                 throw new Error(result.error || 'Failed to start scan');
             }
         } catch (error) {
-            this.showNotification(`Error: ${error.message}`, 'error');
-            startBtn.disabled = false;
+            console.error('Scan error:', error);
+            this.showToast('Scan Error', error.message, 'error');
+            this.resetScanControls();
         } finally {
             this.showLoading(false);
         }
     }
 
     stopScan() {
-        // Note: The backend doesn't have a stop endpoint yet, but we can simulate it
+        console.log('Stopping scan...');
         this.isScanning = false;
         this.stopStatusChecking();
         this.resetScanControls();
-        this.showNotification('Scan stopped', 'info');
+        this.showProgressSection(false);
+        this.showToast('Scan Stopped', 'Network scan has been stopped', 'warning');
     }
 
     async clearResults() {
+        console.log('Clearing results...');
         try {
             this.showLoading(true);
             
@@ -86,34 +128,44 @@ class NetScanApp {
 
             if (response.ok) {
                 this.clearResultsDisplay();
-                this.clearHistoryDisplay();
-                this.showNotification('Results cleared successfully!', 'success');
+                this.hideSummaryCards();
+                this.updateHistory([]);
+                this.showToast('Results Cleared', 'All scan results have been cleared', 'success');
             } else {
                 throw new Error(result.error || 'Failed to clear results');
             }
         } catch (error) {
-            this.showNotification(`Error: ${error.message}`, 'error');
+            console.error('Clear error:', error);
+            this.showToast('Clear Error', error.message, 'error');
         } finally {
             this.showLoading(false);
         }
     }
 
     async refreshResults() {
+        console.log('Refreshing results...');
         try {
             const response = await fetch('/api/results');
             const results = await response.json();
+            console.log('Results fetched:', results);
             
             if (results.length > 0) {
                 const latestResult = results[results.length - 1];
                 this.displayScanResult(latestResult);
                 this.updateHistory(results);
+                this.showToast('Results Refreshed', 'Latest scan results loaded', 'success');
+            } else {
+                this.clearResultsDisplay();
+                this.showToast('No Results', 'No scan results found', 'info');
             }
         } catch (error) {
             console.error('Failed to refresh results:', error);
+            this.showToast('Refresh Error', 'Failed to refresh results', 'error');
         }
     }
 
     startStatusChecking() {
+        console.log('Starting status checking...');
         this.statusCheckInterval = setInterval(async () => {
             try {
                 const response = await fetch('/api/status');
@@ -122,15 +174,18 @@ class NetScanApp {
                 this.updateProgress(status);
                 
                 if (!status.running && this.isScanning) {
+                    console.log('Scan completed, loading results...');
                     // Scan completed
                     this.isScanning = false;
                     this.stopStatusChecking();
                     this.resetScanControls();
                     this.showProgressSection(false);
                     
-                    // Load the latest results
-                    await this.refreshResults();
-                    this.showNotification('Scan completed!', 'success');
+                    // Wait a moment then load results
+                    setTimeout(async () => {
+                        await this.refreshResults();
+                        this.showToast('Scan Complete', 'Network scan completed successfully', 'success');
+                    }, 1000);
                 }
             } catch (error) {
                 console.error('Failed to check status:', error);
@@ -142,30 +197,60 @@ class NetScanApp {
         if (this.statusCheckInterval) {
             clearInterval(this.statusCheckInterval);
             this.statusCheckInterval = null;
+            console.log('Status checking stopped');
         }
     }
 
     updateProgress(status) {
-        const progressSection = document.getElementById('progress-section');
-        const progressText = document.getElementById('progress-text');
-        const progressStats = document.getElementById('progress-stats');
-        const progressFill = document.getElementById('progress-fill');
+        if (!status.running) return;
 
-        if (status.running) {
-            progressText.textContent = `Scanning ${status.current_scan || 'network'}...`;
-            progressStats.textContent = `${status.scanned_hosts}/${status.total_hosts} hosts scanned, ${status.found_hosts} devices found`;
+        const progressTitle = document.getElementById('progress-title');
+        const progressFill = document.getElementById('progress-fill');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const foundCount = document.getElementById('found-count');
+        const scannedCount = document.getElementById('scanned-count');
+
+        if (progressTitle) {
+            progressTitle.textContent = `Scanning ${status.current_scan || 'Network'}`;
+        }
+        
+        if (progressFill) {
             progressFill.style.width = `${status.progress}%`;
+        }
+        
+        if (progressPercentage) {
+            progressPercentage.textContent = `${status.progress}%`;
+        }
+        
+        if (foundCount) {
+            foundCount.textContent = status.found_hosts || 0;
+        }
+        
+        if (scannedCount) {
+            scannedCount.textContent = status.scanned_hosts || 0;
         }
     }
 
     displayScanResult(result) {
-        const resultsContainer = document.getElementById('current-results');
+        console.log('Displaying scan result:', result);
+        const resultsContainer = document.getElementById('results-container');
+        
+        if (!resultsContainer) {
+            console.error('Results container not found');
+            return;
+        }
         
         if (result.error) {
             resultsContainer.innerHTML = `
-                <div class="error-message">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>Scan Error: ${result.error}</p>
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3>Scan Error</h3>
+                    <p>${result.error}</p>
+                    <button class="btn btn-primary" onclick="app.startScan()">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
                 </div>
             `;
             return;
@@ -173,80 +258,124 @@ class NetScanApp {
 
         if (!result.hosts || result.hosts.length === 0) {
             resultsContainer.innerHTML = `
-                <div class="no-results">
-                    <i class="fas fa-search"></i>
-                    <p>No devices found on network ${result.network}</p>
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>No Devices Found</h3>
+                    <p>No active devices were discovered on network ${result.network}</p>
                     <small>Scanned ${result.total_scanned} addresses in ${result.duration}</small>
                 </div>
             `;
+            this.hideSummaryCards();
             return;
         }
 
-        const hostsHtml = result.hosts.map((host, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td class="device-ip">${host}</td>
-                <td>
-                    <div class="device-status">
-                        <span class="status-indicator"></span>
-                        <span class="status-online">Online</span>
-                    </div>
-                </td>
-                <td>Unknown Device</td>
-            </tr>
-        `).join('');
+        // Show summary cards
+        this.showSummaryCards(result);
+
+        // Create results table
+        const hostsHtml = result.hosts.map((host, index) => {
+            const ip = typeof host === 'string' ? host : host.ip;
+            const hostname = typeof host === 'object' ? host.hostname : 'Unknown';
+            const deviceType = typeof host === 'object' ? host.device_type : '💻 Computer/Device';
+            const macAddress = typeof host === 'object' ? host.mac_address : 'Unknown';
+            const vendor = typeof host === 'object' ? host.vendor : 'Unknown';
+            
+            return `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="device-ip">${ip}</td>
+                    <td>
+                        <div class="device-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-online">Online</span>
+                        </div>
+                    </td>
+                    <td class="device-type">${deviceType}</td>
+                    <td class="hostname" title="${hostname}">${hostname.length > 20 ? hostname.substring(0, 20) + '...' : hostname}</td>
+                    <td class="mac-address" title="${vendor}">${macAddress}</td>
+                </tr>
+            `;
+        }).join('');
 
         resultsContainer.innerHTML = `
-            <div class="scan-summary">
-                <h3>Scan Results for ${result.network}</h3>
-                <div class="summary-stats">
-                    <span class="stat-item">
-                        <i class="fas fa-check-circle"></i>
-                        <strong>${result.total_found}</strong> devices found
-                    </span>
-                    <span class="stat-item">
-                        <i class="fas fa-clock"></i>
-                        Completed in <strong>${result.duration}</strong>
-                    </span>
-                    <span class="stat-item">
-                        <i class="fas fa-search"></i>
-                        <strong>${result.total_scanned}</strong> addresses scanned
-                    </span>
-                </div>
-            </div>
-            
-            <table class="results-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>IP Address</th>
-                        <th>Status</th>
-                        <th>Device Type</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${hostsHtml}
-                </tbody>
-            </table>
-            
-            <div class="export-actions">
-                <button class="btn btn-outline btn-small" onclick="app.exportResults(${result.id})">
-                    <i class="fas fa-download"></i> Export JSON
-                </button>
-                <button class="btn btn-outline btn-small" onclick="app.copyToClipboard('${result.hosts.join('\\n')}')">
-                    <i class="fas fa-copy"></i> Copy IPs
-                </button>
+            <div class="results-table-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                            <th>Device Type</th>
+                            <th>Hostname</th>
+                            <th>MAC Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${hostsHtml}
+                    </tbody>
+                </table>
             </div>
         `;
+        
+        // Store current result for export
+        this.currentResult = result;
+        console.log('Results displayed successfully');
+    }
+
+    showSummaryCards(result) {
+        const summaryCards = document.getElementById('summary-cards');
+        const totalDevices = document.getElementById('total-devices');
+        const secureDevices = document.getElementById('secure-devices');
+        const scanDuration = document.getElementById('scan-duration');
+        const coveragePercent = document.getElementById('coverage-percent');
+        
+        if (summaryCards) {
+            summaryCards.style.display = 'grid';
+        }
+        
+        if (totalDevices) {
+            totalDevices.textContent = result.total_found || 0;
+        }
+        
+        if (secureDevices) {
+            const identifiedCount = result.hosts ? result.hosts.filter(host => 
+                typeof host === 'object' && host.device_type !== 'Unknown Device'
+            ).length : 0;
+            secureDevices.textContent = identifiedCount;
+        }
+        
+        if (scanDuration) {
+            scanDuration.textContent = result.duration || '0s';
+        }
+        
+        if (coveragePercent) {
+            const coverage = result.total_scanned ? 
+                Math.round((result.total_found / result.total_scanned) * 100) : 0;
+            coveragePercent.textContent = `${coverage}%`;
+        }
+    }
+
+    hideSummaryCards() {
+        const summaryCards = document.getElementById('summary-cards');
+        if (summaryCards) {
+            summaryCards.style.display = 'none';
+        }
     }
 
     updateHistory(results) {
-        const historyContainer = document.getElementById('scan-history');
+        const historyContainer = document.getElementById('history-container');
+        
+        if (!historyContainer) return;
         
         if (results.length === 0) {
             historyContainer.innerHTML = `
-                <div class="no-history">
-                    <p>No previous scans found.</p>
+                <div class="empty-state small">
+                    <div class="empty-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <p>No scan history available</p>
                 </div>
             `;
             return;
@@ -255,18 +384,29 @@ class NetScanApp {
         const recentScans = results.slice(-5).reverse();
         const historyHtml = recentScans.map(scan => `
             <div class="history-item">
-                <div class="history-info">
-                    <strong>${scan.network}</strong>
-                    <span class="timestamp">${scan.timestamp}</span>
+                <div class="history-icon">
+                    <i class="fas fa-network-wired"></i>
                 </div>
-                <div class="history-stats">
+                <div class="history-content">
+                    <div class="history-title">${scan.network}</div>
+                    <div class="history-meta">
+                        <span class="history-time">
+                            <i class="fas fa-clock"></i> ${scan.timestamp}
+                        </span>
+                        ${scan.hosts ? `
+                            <span class="history-count">
+                                <i class="fas fa-devices"></i> ${scan.total_found} devices
+                            </span>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="history-actions">
                     ${scan.hosts ? `
-                        <span class="found-count">${scan.total_found} devices found</span>
-                        <button class="btn btn-small" onclick="app.loadScanResult(${scan.id})">
+                        <button class="btn btn-ghost btn-xs" onclick="app.loadScanResult(${scan.id})">
                             <i class="fas fa-eye"></i> View
                         </button>
                     ` : `
-                        <span class="error">Error occurred</span>
+                        <span class="status-badge error">Error</span>
                     `}
                 </div>
             </div>
@@ -276,6 +416,7 @@ class NetScanApp {
     }
 
     async loadScanResult(scanId) {
+        console.log('Loading scan result:', scanId);
         try {
             this.showLoading(true);
             
@@ -284,118 +425,124 @@ class NetScanApp {
             
             if (response.ok) {
                 this.displayScanResult(result);
+                this.showToast('Results Loaded', `Loaded scan results for ${result.network}`, 'success');
             } else {
                 throw new Error(result.error || 'Failed to load scan result');
             }
         } catch (error) {
-            this.showNotification(`Error: ${error.message}`, 'error');
+            console.error('Load error:', error);
+            this.showToast('Load Error', error.message, 'error');
         } finally {
             this.showLoading(false);
         }
     }
 
-    async exportResults(scanId) {
-        try {
-            const response = await fetch(`/api/export/${scanId}`);
-            
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `netscan_${scanId}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                this.showNotification('Results exported successfully!', 'success');
-            } else {
-                throw new Error('Failed to export results');
-            }
-        } catch (error) {
-            this.showNotification(`Export error: ${error.message}`, 'error');
-        }
-    }
-
-    copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            this.showNotification('IP addresses copied to clipboard!', 'success');
-        }).catch(() => {
-            this.showNotification('Failed to copy to clipboard', 'error');
-        });
-    }
-
     resetScanControls() {
-        document.getElementById('start-scan').disabled = false;
-        document.getElementById('stop-scan').disabled = true;
+        const startBtn = document.getElementById('start-scan');
+        const stopBtn = document.getElementById('stop-scan');
+        
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
     }
 
     showProgressSection(show) {
         const progressSection = document.getElementById('progress-section');
-        progressSection.style.display = show ? 'block' : 'none';
+        if (progressSection) {
+            progressSection.style.display = show ? 'block' : 'none';
+        }
         
         if (!show) {
-            document.getElementById('progress-fill').style.width = '0%';
+            const progressFill = document.getElementById('progress-fill');
+            if (progressFill) {
+                progressFill.style.width = '0%';
+            }
         }
     }
 
     clearResultsDisplay() {
-        document.getElementById('current-results').innerHTML = `
-            <div class="no-results">
-                <i class="fas fa-search"></i>
-                <p>No scan results yet. Start a scan to discover devices on your network.</p>
-            </div>
-        `;
-    }
-
-    clearHistoryDisplay() {
-        document.getElementById('scan-history').innerHTML = `
-            <div class="no-history">
-                <p>No previous scans found.</p>
-            </div>
-        `;
+        const resultsContainer = document.getElementById('results-container');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>No Scan Results</h3>
+                    <p>Start a network scan to discover devices on your infrastructure</p>
+                    <button class="btn btn-primary" onclick="app.startScan()">
+                        <i class="fas fa-play"></i> Start First Scan
+                    </button>
+                </div>
+            `;
+        }
+        this.hideSummaryCards();
+        this.currentResult = null;
     }
 
     showLoading(show) {
         const overlay = document.getElementById('loading-overlay');
-        overlay.style.display = show ? 'flex' : 'none';
+        if (overlay) {
+            if (show) {
+                overlay.classList.add('show');
+            } else {
+                overlay.classList.remove('show');
+            }
+        }
     }
 
-    showNotification(message, type = 'info') {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.innerHTML = `
-            <i class="fas fa-${this.getNotificationIcon(type)}"></i>
-            <span>${message}</span>
+    showToast(title, message, type = 'info') {
+        console.log(`Toast: ${title} - ${message} (${type})`);
+        
+        // Create toast container if it doesn't exist
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const iconMap = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+
+        toast.innerHTML = `
+            <div class="toast-icon">
+                <i class="${iconMap[type] || iconMap.info}"></i>
+            </div>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
         `;
 
-        // Add to page
-        document.body.appendChild(notification);
+        container.appendChild(toast);
 
-        // Auto remove after 3 seconds
+        // Auto remove after 5 seconds
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+            if (toast.parentNode) {
+                toast.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
             }
-        }, 3000);
-    }
-
-    getNotificationIcon(type) {
-        const icons = {
-            success: 'check-circle',
-            error: 'exclamation-circle',
-            warning: 'exclamation-triangle',
-            info: 'info-circle'
-        };
-        return icons[type] || 'info-circle';
+        }, 5000);
     }
 
     async loadInitialData() {
+        console.log('Loading initial data...');
         try {
             const response = await fetch('/api/results');
             const results = await response.json();
+            console.log('Initial data loaded:', results);
             
             if (results.length > 0) {
                 this.updateHistory(results);
@@ -406,94 +553,66 @@ class NetScanApp {
     }
 }
 
-// Add notification styles dynamically
-const notificationStyles = `
-    .notification {
+// Add required CSS for toasts
+const toastStyles = `
+    .toast-container {
         position: fixed;
         top: 20px;
         right: 20px;
-        padding: 12px 20px;
-        border-radius: 8px;
-        color: white;
-        font-weight: 600;
-        z-index: 1001;
+        z-index: 1500;
         display: flex;
-        align-items: center;
-        gap: 10px;
-        animation: slideIn 0.3s ease;
-        max-width: 400px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        flex-direction: column;
+        gap: 12px;
     }
     
-    .notification-success { background: #10b981; }
-    .notification-error { background: #ef4444; }
-    .notification-warning { background: #f59e0b; }
-    .notification-info { background: #3b82f6; }
+    .toast {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        padding: 16px 20px;
+        border-left: 4px solid #3b82f6;
+        max-width: 400px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideInRight 0.3s ease-out;
+    }
     
-    @keyframes slideIn {
+    .toast.success { border-left-color: #22c55e; }
+    .toast.error { border-left-color: #ef4444; }
+    .toast.warning { border-left-color: #f59e0b; }
+    
+    @keyframes slideInRight {
         from { transform: translateX(100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
     }
     
-    .scan-summary {
-        margin-bottom: 20px;
-        padding: 20px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border-left: 4px solid var(--success-color);
+    @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
     }
     
-    .summary-stats {
-        display: flex;
-        gap: 20px;
-        margin-top: 15px;
-        flex-wrap: wrap;
-    }
+    .toast-icon { font-size: 20px; }
+    .toast.success .toast-icon { color: #22c55e; }
+    .toast.error .toast-icon { color: #ef4444; }
+    .toast.warning .toast-icon { color: #f59e0b; }
+    .toast.info .toast-icon { color: #3b82f6; }
     
-    .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-    }
-    
-    .stat-item i {
-        color: var(--success-color);
-    }
-    
-    .export-actions {
-        margin-top: 20px;
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-    
-    .error-message {
-        text-align: center;
-        padding: 40px 20px;
-        color: var(--danger-color);
-        background: #fef2f2;
-        border-radius: 8px;
-        border-left: 4px solid var(--danger-color);
-    }
-    
-    .error-message i {
-        font-size: 2rem;
-        margin-bottom: 15px;
-    }
+    .toast-content { flex: 1; }
+    .toast-title { font-weight: 600; color: #1f2937; margin-bottom: 4px; }
+    .toast-message { font-size: 14px; color: #6b7280; }
 `;
 
-// Add styles to head
 const styleSheet = document.createElement('style');
-styleSheet.textContent = notificationStyles;
+styleSheet.textContent = toastStyles;
 document.head.appendChild(styleSheet);
 
 // Initialize app when DOM is loaded
 let app;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing app...');
     app = new NetScanApp();
 });
 
-// Make loadScanResult available globally for onclick handlers
-window.loadScanResult = (scanId) => app.loadScanResult(scanId);
+// Make app available globally
+window.app = app;

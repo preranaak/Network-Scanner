@@ -3,140 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NetScan - Network Scanner</title>
+    <meta name="description" content="Enterprise Network Discovery Tool - Scan and identify devices on your network infrastructure">
+    <meta name="keywords" content="network scanner, device discovery, network security, IT infrastructure">
+    <meta name="author" content="NetScan Enterprise">
+    <title>NetScan Enterprise - Network Discovery Platform</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <i class="fas fa-network-wired"></i>
-                <h1>NetScan</h1>
+    <div class="app-container">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <div class="brand-logo">
+                    <i class="fas fa-network-wired"></i>
+                    <span class="brand-name">NetScan</span>
+                    <span class="brand-subtitle">Enterprise</span>
+                </div>
             </div>
-            <div class="network-info">
-                <span class="info-item">
-                    <i class="fas fa-desktop"></i>
-                    Local IP: <strong>{{ local_ip }}</strong>
-                </span>
-                <span class="info-item">
-                    <i class="fas fa-mask"></i>
-                    Subnet: <strong>{{ local_mask }}</strong>
-                </span>
+            <div class="nav-info">
+                <div class="system-status">
+                    <span class="status-indicator online"></span>
+                    <span class="status-text">System Online</span>
+                </div>
+                <div class="network-details">
+                    <div class="detail-item">
+                        <i class="fas fa-server"></i>
+                        <span class="detail-label">Local IP:</span>
+                        <span class="detail-value">{{ local_ip }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <i class="fas fa-sitemap"></i>
+                        <span class="detail-label">Subnet:</span>
+                        <span class="detail-value">{{ local_mask }}</span>
+                    </div>
+                </div>
             </div>
-        </header>
+        </nav>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Scan Control Panel -->
-            <section class="scan-panel">
-                <h2><i class="fas fa-search"></i> Network Scanner</h2>
-                
-                <div class="scan-form">
-                    <div class="input-group">
-                        <label for="network-input">Network to Scan:</label>
-                        <input 
-                            type="text" 
-                            id="network-input" 
-                            placeholder="e.g., 192.168.1.0/24 or leave empty for auto-detect"
-                            value="{{ suggested_network }}"
-                        >
-                        <small class="help-text">
-                            Examples: 192.168.1.0/24, 10.0.0.0/16, or leave empty for auto-detection
-                        </small>
-                    </div>
-                    
-                    <div class="scan-controls">
-                        <button id="start-scan" class="btn btn-primary">
-                            <i class="fas fa-play"></i> Start Scan
-                        </button>
-                        <button id="stop-scan" class="btn btn-secondary" disabled>
-                            <i class="fas fa-stop"></i> Stop Scan
-                        </button>
-                        <button id="clear-results" class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Clear Results
-                        </button>
-                    </div>
+        <!-- Main Application -->
+        <div class="main-application">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-tachometer-alt"></i> Dashboard</h3>
+                    <ul class="sidebar-menu">
+                        <li class="menu-item active">
+                            <i class="fas fa-search"></i>
+                            <span>Network Scanner</span>
+                        </li>
+                        <li class="menu-item">
+                            <i class="fas fa-history"></i>
+                            <span>Scan History</span>
+                        </li>
+                        <li class="menu-item">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Analytics</span>
+                        </li>
+                    </ul>
                 </div>
-
-                <!-- Progress Section -->
-                <div id="progress-section" class="progress-section" style="display: none;">
-                    <div class="progress-info">
-                        <span id="progress-text">Preparing scan...</span>
-                        <span id="progress-stats"></span>
-                    </div>
-                    <div class="progress-bar">
-                        <div id="progress-fill" class="progress-fill"></div>
-                    </div>
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-cog"></i> Tools</h3>
+                    <ul class="sidebar-menu">
+                        <li class="menu-item">
+                            <i class="fas fa-download"></i>
+                            <span>Export Data</span>
+                        </li>
+                        <li class="menu-item">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Security Report</span>
+                        </li>
+                    </ul>
                 </div>
-            </section>
+            </aside>
 
-            <!-- Results Section -->
-            <section class="results-section">
-                <div class="results-header">
-                    <h2><i class="fas fa-list"></i> Scan Results</h2>
-                    <div class="results-actions">
-                        <button id="refresh-results" class="btn btn-outline">
-                            <i class="fas fa-sync"></i> Refresh
+            <!-- Content Area -->
+            <main class="content-area">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="page-title">
+                        <h1><i class="fas fa-radar"></i> Network Discovery</h1>
+                        <p class="page-description">Discover and analyze devices on your network infrastructure</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn btn-outline btn-sm" id="help-btn">
+                            <i class="fas fa-question-circle"></i> Help
+                        </button>
+                        <button class="btn btn-outline btn-sm" id="settings-btn">
+                            <i class="fas fa-cog"></i> Settings
                         </button>
                     </div>
                 </div>
 
-                <!-- Current Scan Results -->
-                <div id="current-results" class="results-container">
-                    <div class="no-results">
-                        <i class="fas fa-search"></i>
-                        <p>No scan results yet. Start a scan to discover devices on your network.</p>
+                <!-- Scanner Configuration Panel -->
+                <section class="card scanner-panel">
+                    <div class="card-header">
+                        <h2><i class="fas fa-satellite-dish"></i> Scan Configuration</h2>
+                        <div class="card-actions">
+                            <button class="btn btn-ghost btn-sm" id="advanced-toggle">
+                                <i class="fas fa-sliders-h"></i> Advanced
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Scan History -->
-                <div class="history-section">
-                    <h3><i class="fas fa-history"></i> Recent Scans</h3>
-                    <div id="scan-history" class="history-container">
-                        {% if recent_scans %}
-                            {% for scan in recent_scans %}
-                            <div class="history-item">
-                                <div class="history-info">
-                                    <strong>{{ scan.network }}</strong>
-                                    <span class="timestamp">{{ scan.timestamp }}</span>
+                    <div class="card-body">
+                        <form class="scanner-form" id="scan-form">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="network-input" class="form-label">
+                                        <i class="fas fa-network-wired"></i>
+                                        Target Network Range
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        id="network-input" 
+                                        class="form-input"
+                                        placeholder="e.g., 192.168.1.0/24 or leave empty for auto-detection"
+                                        value="{{ suggested_network }}"
+                                        autocomplete="off"
+                                    >
+                                    <div class="form-help">
+                                        <i class="fas fa-info-circle"></i>
+                                        Supports CIDR notation (192.168.1.0/24), IP ranges, or auto-detection
+                                    </div>
                                 </div>
-                                <div class="history-stats">
-                                    {% if scan.hosts %}
-                                        <span class="found-count">{{ scan.total_found }} devices found</span>
-                                        <button class="btn btn-small" onclick="loadScanResult({{ scan.id }})">
-                                            <i class="fas fa-eye"></i> View
-                                        </button>
-                                    {% else %}
-                                        <span class="error">Error occurred</span>
-                                    {% endif %}
+                                
+                                <div class="form-group advanced-options" style="display: none;">
+                                    <label for="scan-timeout" class="form-label">
+                                        <i class="fas fa-clock"></i>
+                                        Timeout (ms)
+                                    </label>
+                                    <select id="scan-timeout" class="form-select">
+                                        <option value="1000">Fast (1s)</option>
+                                        <option value="3000" selected>Standard (3s)</option>
+                                        <option value="5000">Thorough (5s)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group advanced-options" style="display: none;">
+                                    <label for="thread-count" class="form-label">
+                                        <i class="fas fa-microchip"></i>
+                                        Concurrent Threads
+                                    </label>
+                                    <select id="thread-count" class="form-select">
+                                        <option value="25">Conservative (25)</option>
+                                        <option value="50" selected>Standard (50)</option>
+                                        <option value="100">Aggressive (100)</option>
+                                    </select>
                                 </div>
                             </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="no-history">
-                                <p>No previous scans found.</p>
+                            
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="start-scan">
+                                    <i class="fas fa-play"></i>
+                                    <span>Start Network Scan</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="stop-scan" disabled>
+                                    <i class="fas fa-stop"></i>
+                                    <span>Stop Scan</span>
+                                </button>
+                                <button type="button" class="btn btn-outline" id="clear-results">
+                                    <i class="fas fa-broom"></i>
+                                    <span>Clear Results</span>
+                                </button>
                             </div>
-                        {% endif %}
+                        </form>
+
+                        <!-- Progress Section -->
+                        <div id="progress-section" class="progress-section" style="display: none;">
+                            <div class="progress-header">
+                                <div class="progress-info">
+                                    <h4 id="progress-title">Scanning Network...</h4>
+                                    <span id="progress-details" class="progress-details"></span>
+                                </div>
+                                <div class="progress-stats">
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="found-count">0</span>
+                                        <span class="stat-label">Found</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="scanned-count">0</span>
+                                        <span class="stat-label">Scanned</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar">
+                                    <div id="progress-fill" class="progress-fill"></div>
+                                </div>
+                                <span class="progress-percentage" id="progress-percentage">0%</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </section>
-        </main>
+                </section>
+
+                <!-- Results Dashboard -->
+                <section class="card results-panel">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-bar"></i> Discovery Results</h2>
+                        <div class="card-actions">
+                            <button class="btn btn-ghost btn-sm" id="refresh-results">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <div class="dropdown">
+                                <button class="btn btn-ghost btn-sm dropdown-toggle" id="export-dropdown">
+                                    <i class="fas fa-download"></i> Export
+                                </button>
+                                <div class="dropdown-menu" id="export-menu">
+                                    <a href="#" class="dropdown-item" id="export-csv">
+                                        <i class="fas fa-file-csv"></i> Export as CSV
+                                    </a>
+                                    <a href="#" class="dropdown-item" id="export-json">
+                                        <i class="fas fa-file-code"></i> Export as JSON
+                                    </a>
+                                    <a href="#" class="dropdown-item" id="export-pdf">
+                                        <i class="fas fa-file-pdf"></i> Generate Report
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Summary Cards -->
+                        <div class="summary-grid" id="summary-cards" style="display: none;">
+                            <div class="summary-card">
+                                <div class="summary-icon">
+                                    <i class="fas fa-network-wired"></i>
+                                </div>
+                                <div class="summary-content">
+                                    <div class="summary-value" id="total-devices">0</div>
+                                    <div class="summary-label">Total Devices</div>
+                                </div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-icon">
+                                    <i class="fas fa-shield-check"></i>
+                                </div>
+                                <div class="summary-content">
+                                    <div class="summary-value" id="secure-devices">0</div>
+                                    <div class="summary-label">Identified</div>
+                                </div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="summary-content">
+                                    <div class="summary-value" id="scan-duration">0s</div>
+                                    <div class="summary-label">Scan Time</div>
+                                </div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="summary-icon">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                                <div class="summary-content">
+                                    <div class="summary-value" id="coverage-percent">0%</div>
+                                    <div class="summary-label">Coverage</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Table -->
+                        <div id="results-container" class="results-container">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <h3>No Scan Results</h3>
+                                <p>Start a network scan to discover devices on your infrastructure</p>
+                                <button class="btn btn-primary" onclick="document.getElementById('start-scan').click()">
+                                    <i class="fas fa-play"></i> Start First Scan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Scan History Panel -->
+                <section class="card history-panel">
+                    <div class="card-header">
+                        <h2><i class="fas fa-history"></i> Scan History</h2>
+                        <div class="card-actions">
+                            <button class="btn btn-ghost btn-sm" id="clear-history">
+                                <i class="fas fa-trash-alt"></i> Clear History
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="history-container" class="history-container">
+                            {% if recent_scans %}
+                                {% for scan in recent_scans %}
+                                <div class="history-item">
+                                    <div class="history-icon">
+                                        <i class="fas fa-network-wired"></i>
+                                    </div>
+                                    <div class="history-content">
+                                        <div class="history-title">{{ scan.network }}</div>
+                                        <div class="history-meta">
+                                            <span class="history-time">
+                                                <i class="fas fa-clock"></i> {{ scan.timestamp }}
+                                            </span>
+                                            {% if scan.hosts %}
+                                                <span class="history-count">
+                                                    <i class="fas fa-devices"></i> {{ scan.total_found }} devices
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="history-actions">
+                                        {% if scan.hosts %}
+                                            <button class="btn btn-ghost btn-xs" onclick="loadScanResult({{ scan.id }})">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                        {% else %}
+                                            <span class="status-badge error">Error</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="empty-state small">
+                                    <div class="empty-icon">
+                                        <i class="fas fa-history"></i>
+                                    </div>
+                                    <p>No scan history available</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
 
         <!-- Footer -->
-        <footer class="footer">
-            <p>&copy; 2024 NetScan - Network Discovery Tool</p>
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <p>&copy; 2024 NetScan Enterprise. All rights reserved.</p>
+                </div>
+                <div class="footer-section">
+                    <span class="footer-link">Documentation</span>
+                    <span class="footer-separator">|</span>
+                    <span class="footer-link">Support</span>
+                    <span class="footer-separator">|</span>
+                    <span class="footer-link">Privacy Policy</span>
+                </div>
+                <div class="footer-section">
+                    <span class="version-info">Version 2.0.0</span>
+                </div>
+            </div>
         </footer>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Processing...</p>
+    <!-- Modals -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question-circle"></i> Help & Documentation</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h4>Network Scanning</h4>
+                    <ul>
+                        <li><strong>Auto-detection:</strong> Leave network field empty to scan your current network</li>
+                        <li><strong>CIDR Notation:</strong> Use formats like 192.168.1.0/24 for specific ranges</li>
+                        <li><strong>IP Ranges:</strong> Supports partial IPs like 192.168.1 (becomes /24)</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h4>Device Types</h4>
+                    <ul>
+                        <li>🌐 Router/Gateway - Network infrastructure devices</li>
+                        <li>💻 Computer - Desktops, laptops, workstations</li>
+                        <li>📱 Mobile Device - Phones, tablets</li>
+                        <li>🖨️ Printer - Network printers and MFDs</li>
+                        <li>📺 Smart TV/Streaming - Entertainment devices</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3>Processing Request</h3>
+            <p>Please wait while we process your request...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
